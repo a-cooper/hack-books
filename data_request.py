@@ -2,6 +2,7 @@
 import requests
 import json
 from bs4 import BeautifulSoup
+import re
 
 WIKIDATA_SEARCH = "https://www.wikidata.org/w/api.php?action=query&format=json&list=search"
 WIKIDATA_PARSE = "https://www.wikidata.org/w/api.php?action=parse"
@@ -29,9 +30,18 @@ def get_page_id(text: str):
 def get_page_info(pageid: str):
     response = requests.get(WIKIDATA_PARSE + "&page=" + pageid)
     soup = BeautifulSoup(response.text, 'lxml')
-    print(soup)
+    get_gender(response.text)
+    #print(soup.body.div)
 
 #def extract_pageid()
+
+def get_gender(data: str):
+    start = "<a title=\"Property:P21\" href=\"/wiki/Property:P21\">sex or gender</a>"
+    end = "<<a title=\"Property:\">"
+    result = re.findall(r".*", data)
+    #data = soup.find_all(string=re.compile('P21'))
+    print(result)
+
 
 
 id = get_page_id("Akwaeke Emezi")
