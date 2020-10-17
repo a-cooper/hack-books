@@ -139,7 +139,8 @@ def read_goodreads(filename: str):
         for row in csvreader:
             authors.append(row[author_field_index])
     for index, author in enumerate(authors):
-        print("author: " + author + "  "+ str(get_author_info(author)))
+        if author:
+            print("author: " + author + "  "+ str(get_author_info(author)))
         if index%5 == 0:
             reference.update_maps_jsons()
     reference.update_maps_jsons()
@@ -147,7 +148,7 @@ def read_goodreads(filename: str):
 
 
 reference = ReferenceData()
-read_goodreads("goodreads/nj_goodreads_library_export.csv")
+read_goodreads("goodreads/read-2020.csv")
 #get_author_info("Jules Verne")
 #reference.update_maps_jsons()
 
