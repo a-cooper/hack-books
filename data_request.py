@@ -1,8 +1,7 @@
 
 import requests
 import json
-from bs4 import BeautifulSoup
-from html.parser import HTMLParser
+import csv
 
 WIKIDATA_SEARCH = "https://www.wikidata.org/w/api.php?action=query&format=json&list=search"
 WIKIDATA_PARSE = "https://www.wikidata.org/wiki/Special:EntityData/"
@@ -10,9 +9,6 @@ GENDER_MAP_JSON = "reference_data/gender_mapping.json"
 COUNTRY_MAP_JSON = "reference_data/country_mapping.json"
 CONTINENT_MAP_JSON = "reference_data/continent_mapping.json"
 AUTHOR_MAP_JSON = "reference_data/author_mapping.json"
-
-NATIONALITY = "country of citizenship"
-GENDER = "sex or gender"
 
 class ReferenceData():
     def __init__(self):
@@ -24,6 +20,7 @@ class ReferenceData():
 
         with open(AUTHOR_MAP_JSON) as f:
             self.author_map = json.load(f)
+
 
     def get_gender(self, id: str):
         gender = self.gender_map.get(id)
@@ -42,9 +39,12 @@ class ReferenceData():
             data = country_data.get("entities").get(id)
             country_name = data.get("labels").get("en").get("value")
             country["name"] = country_name
-            region = data.get("claims").get("P361")[0].get("mainsnak").get("datavalue").get("value").get("id") # P361 is the 'part of' tag
-            region_name = self.get_regions(region)
-            country["region"] = region_name
+            try:
+                region = data.get("claims").get("P361")[0].get("mainsnak").get("datavalue").get("value").get("id") # P361 is the 'part of' tag
+                region_name = self.get_regions(region)
+                country["region"] = region_name
+            except TypeError:
+                country["region"] = "Unknown"
             self.country_map[id] = country
             return country
 
@@ -81,7 +81,11 @@ def get_page_id(text: str):
     """
     response = requests.get(WIKIDATA_SEARCH + "&srsearch=" + text)
     data = json.loads(response.text)
-    top_page = data.get("query").get("search")[0]
+
+    pages = data.get("query").get("search")
+    if len(pages) < 1:
+        return -1
+    top_page = pages[0]
     return top_page.get("title")
 
 
@@ -90,29 +94,61 @@ def get_author_info(author: str):
     if author_details:
         return author_details
     pageid = get_page_id(author)
-    response = requests.get(WIKIDATA_PARSE + pageid + ".json")
-    data = json.loads(response.text)
-    properties = data.get("entities").get(pageid).get("claims")
-    author_details = {"id": pageid, "gender": get_gender(properties)}
-    country_details = get_nationality(properties)
-    author_details["country"] = country_details.get("name")
-    author_details["region"] = country_details.get("region")
+    if pageid == -1:
+        author_details = {"id": "Unknown", "gender": "Unknown", "country": "Unknown", "region": "Unknown"}
+    else:
+        response = requests.get(WIKIDATA_PARSE + pageid + ".json")
+        data = json.loads(response.text)
+        properties = data.get("entities").get(pageid).get("claims")
+        author_details = {"id": pageid, "gender": get_gender(properties)}
+        country_details = get_nationality(properties)
+        author_details["country"] = country_details.get("name")
+        author_details["region"] = country_details.get("region")
+
     reference.author_map[author] = author_details
     return author_details
 
 #def extract_pageid()
 
 def get_gender(data: dict):
-    gender = data.get("P21")[0].get("mainsnak").get("datavalue").get("value").get("id")
+    try:
+        gender = data.get("P21")[0].get("mainsnak").get("datavalue").get("value").get("id")
+    except TypeError:
+        return "Unknown"
     return reference.get_gender(gender)
 
 
 def get_nationality(data: dict):
-    country = data.get("P27")[0].get("mainsnak").get("datavalue").get("value").get("id")
+    try:
+        country = data.get("P27")[0].get("mainsnak").get("datavalue").get("value").get("id")
+    except TypeError:
+        return {"country":"Unknown", "region":"Unknown"}
     return reference.get_country(country)
 
+
+def read_goodreads(filename: str):
+    author_field_index = 0
+    authors = []
+    with open(filename, 'r') as csvfile:
+        csvreader = csv.reader(csvfile)
+        fields = next(csvreader)
+        for index, field in enumerate(fields):
+            if field.lower() == "author":
+                author_field_index = index
+                break
+        for row in csvreader:
+            authors.append(row[author_field_index])
+    for index, author in enumerate(authors):
+        print("author: " + author + "  "+ str(get_author_info(author)))
+        if index%5 == 0:
+            reference.update_maps_jsons()
+    reference.update_maps_jsons()
+
+
+
 reference = ReferenceData()
-get_author_info("Jules Verne")
-reference.update_maps_jsons()
+read_goodreads("goodreads/nj_goodreads_library_export.csv")
+#get_author_info("Jules Verne")
+#reference.update_maps_jsons()
 
 
