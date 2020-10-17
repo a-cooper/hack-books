@@ -148,7 +148,7 @@ def read_goodreads(filename: str):
 
 
 reference = ReferenceData()
-read_goodreads("goodreads/read-2020.csv")
+read_goodreads("goodreads/la_goodreads_library_export.csv")
 #get_author_info("Jules Verne")
 #reference.update_maps_jsons()
 
