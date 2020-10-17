@@ -31,15 +31,38 @@ class ReferenceData():
         country = self.country_map.get(id)
         if country:
             return country
-        # TODO have it look up the value
-        return "Unknown"
+        else:
+            country = {}
+            country_data = json.loads(requests.get(WIKIDATA_PARSE + id + ".json").text)
+            data = country_data.get("entities").get(id)
+            country_name = data.get("labels").get("en").get("value")
+            country["name"] = country_name
+            region = data.get("claims").get("P361")[0].get("mainsnak").get("datavalue").get("value").get("id") # P361 is the 'part of' tag
+            region_name, continent_name = self.get_regions(region)
+            country["region"] = region_name
+            country["continent"] = continent_name
+            self.country_map[id] = country
+            return country
+
+    def get_regions(self, id: str):
+        region_data = json.loads(requests.get(WIKIDATA_PARSE + id + ".json").text)
+        data = region_data.get("entities").get(id)
+        region_name = data.get("labels").get("en").get("value")
+        continent_id = data.get("claims").get("P361")[0].get("mainsnak").get("datavalue").get("value").get("id") # P361 is the 'part of' tag
+        continent_data = json.loads(requests.get(WIKIDATA_PARSE + continent_id + ".json").text)
+        continent_name = continent_data.get("entities").get(continent_id).get("labels").get("en").get("value")
+        return region_name, continent_name
+
 
     def update_gender_map(self, key: str, value: str):
         self.gender_map.put(key, value)
-        with open('reference_data/gender_mapping.json', 'w') as f:
-            json.dump(GENDER_MAP_JSON, f)
 
 
+    def update_maps_jsons(self):
+        with open(GENDER_MAP_JSON, 'w') as f:
+            json.dump(self.gender_map, f)
+        with open(COUNTRY_MAP_JSON, 'w') as f:
+            json.dump(self.country_map, f)
 
 def test_request():
     response = requests.get("https://www.wikidata.org/w/api.php?action=query&list=search&srsearch=Akwaeke%20Emezi&format=json")
@@ -77,7 +100,8 @@ def get_nationality(data: dict):
     print(reference.get_country(nationality))
 
 reference = ReferenceData()
-id = get_page_id("Akwaeke Emezi")
+id = get_page_id("Chimamanda Ngozi Adichie")
 get_page_info(id)
+reference.update_maps_jsons()
 
 
