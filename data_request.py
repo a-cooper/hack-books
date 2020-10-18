@@ -212,8 +212,7 @@ class ReferenceData:
 
 def main():
     data = AuthorData();
-    # filename = input("Please enter a filename: ")
-    filename = "goodreads/nj_goodreads_library_export.csv"
+    filename = input("Please enter a filename: ")
     author_data = data.read_csv(filename)
     print(author_data)
     data.write_csv(filename, author_data)
